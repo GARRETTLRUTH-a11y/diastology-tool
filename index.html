@@ -113,6 +113,8 @@
     padding:7px 6px;border-radius:8px;border:1px solid var(--line-strong);
     background:#fafcfd;color:var(--ink);cursor:pointer;transition:.14s;text-align:center;
   }
+  .qbtn .qunit{font-family:var(--mono);font-weight:500;font-size:10px;color:var(--faint)}
+  .qbtn.active .qunit{color:rgba(255,255,255,.75)}
   .qbtn .qtag{font-family:var(--body);font-weight:500;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
   .qbtn:hover{border-color:var(--teal)}
   .qbtn.active{color:#fff}
@@ -379,33 +381,33 @@ const CONFOUNDERS = [
 const state = { confounders:new Set(), quickPick:{} };
 
 /* ---------- quick-pick (button) alternative to typing numbers ---------- */
-// [id, isAbnormal(value), abnormal-side label, normal-side label]
+// [id, isAbnormal(value), abnormal-side label, normal-side label, unit]
 const QUICKPICKS = [
-  ["ePrimeAvg", v=>v<=6.5,  "≤ 6.5", "> 6.5"],
-  ["ePrimeSep", v=>v<=6,    "≤ 6",   "> 6"],
-  ["ePrimeLat", v=>v<=7,    "≤ 7",   "> 7"],
-  ["EeAvg",     v=>v>=14,   "≥ 14",  "< 14"],
-  ["EeSep",     v=>v>=15,   "≥ 15",  "< 15"],
-  ["EeLat",     v=>v>=13,   "≥ 13",  "< 13"],
-  ["trVel",     v=>v>=2.8,  "≥ 2.8", "< 2.8"],
-  ["pasp",      v=>v>=35,   "≥ 35",  "< 35"],
-  ["pvSD",      v=>v<=0.67, "≤ 0.67","> 0.67"],
-  ["lars",      v=>v<=18,   "≤ 18",  "> 18"],
-  ["lavi",      v=>v>34,    "> 34",  "≤ 34"],
-  ["ivrt",      v=>v<=70,   "≤ 70",  "> 70"],
+  ["ePrimeAvg", v=>v<=6.5,  "≤ 6.5", "> 6.5",  "cm/s"],
+  ["ePrimeSep", v=>v<=6,    "≤ 6",   "> 6",    "cm/s"],
+  ["ePrimeLat", v=>v<=7,    "≤ 7",   "> 7",    "cm/s"],
+  ["EeAvg",     v=>v>=14,   "≥ 14",  "< 14",   "ratio"],
+  ["EeSep",     v=>v>=15,   "≥ 15",  "< 15",   "ratio"],
+  ["EeLat",     v=>v>=13,   "≥ 13",  "< 13",   "ratio"],
+  ["trVel",     v=>v>=2.8,  "≥ 2.8", "< 2.8",  "m/s"],
+  ["pasp",      v=>v>=35,   "≥ 35",  "< 35",   "mmHg"],
+  ["pvSD",      v=>v<=0.67, "≤ 0.67","> 0.67", "ratio"],
+  ["lars",      v=>v<=18,   "≤ 18",  "> 18",   "%"],
+  ["lavi",      v=>v>34,    "> 34",  "≤ 34",   "mL/m²"],
+  ["ivrt",      v=>v<=70,   "≤ 70",  "> 70",   "ms"],
 ];
 const QP_MAP = Object.fromEntries(QUICKPICKS.map(q=>[q[0],q]));
 const STEP1_QP_IDS = new Set(["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp"]);
 const STEP2_QP_IDS = new Set(["pvSD","lars","lavi","ivrt"]);
 
 function buildQuickPicks(){
-  QUICKPICKS.forEach(([id,,abnLabel,normLabel])=>{
+  QUICKPICKS.forEach(([id,,abnLabel,normLabel,unit])=>{
     const input = $(id);
     const wrap = document.createElement("div");
     wrap.className = "qp";
     wrap.innerHTML =
-      `<button type="button" class="qbtn abn" data-mode="abn">${abnLabel}<span class="qtag">abnormal</span></button>` +
-      `<button type="button" class="qbtn norm" data-mode="norm">${normLabel}<span class="qtag">normal</span></button>`;
+      `<button type="button" class="qbtn abn" data-mode="abn"><span class="qval">${abnLabel} <span class="qunit">${unit}</span></span><span class="qtag">abnormal</span></button>` +
+      `<button type="button" class="qbtn norm" data-mode="norm"><span class="qval">${normLabel} <span class="qunit">${unit}</span></span><span class="qtag">normal</span></button>`;
     input.closest(".inp").insertAdjacentElement("afterend", wrap);
     wrap.querySelectorAll(".qbtn").forEach(btn=>{
       btn.addEventListener("click",()=>onQuickPick(id,btn.dataset.mode,wrap));
@@ -438,7 +440,8 @@ function critVal(id){
   const mode = state.quickPick[id];
   if(mode){
     const q = QP_MAP[id];
-    return {has:true, abnormal: mode==="abn", disp: (mode==="abn" ? q[2] : q[3])};
+    const unitSuffix = q[4]==="ratio" ? "" : ` ${q[4]}`;
+    return {has:true, abnormal: mode==="abn", disp: (mode==="abn" ? q[2] : q[3]) + unitSuffix};
   }
   const v = num(id);
   if(v===null) return {has:false};
