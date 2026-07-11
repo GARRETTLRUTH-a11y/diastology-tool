@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diastology — LV Diastolic Function & LAP Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111a22; --muted:#5b6b78; --faint:#8695a1;
+    --surface:#eef2f5; --card:#ffffff; --line:#e0e7ec; --line-strong:#cdd8df;
+    --teal:#1f6b7d; --teal-deep:#154c59; --teal-soft:#e3eef1;
+    --green:#1c7a4b; --green-soft:#e5f3ec;
+    --red:#b02a20; --red-soft:#fbe9e7;
+    --amber:#a76d06; --amber-soft:#fbf0d7;
+    --purple:#57377f; --purple-soft:#efe9f6;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,sans-serif;
+    --shadow:0 1px 2px rgba(17,26,34,.04),0 8px 24px -12px rgba(17,26,34,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--body); color:var(--ink); background:var(--surface);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+    padding:24px 18px 72px; min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  /* Header */
+  header{margin-bottom:22px}
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--teal); font-weight:600; display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:"";width:22px;height:2px;background:var(--teal);border-radius:2px}
+  h1{
+    font-family:var(--disp); font-weight:600; font-size:clamp(26px,5vw,36px);
+    letter-spacing:-.02em; line-height:1.05; margin:10px 0 6px;
+  }
+  h1 em{font-style:normal;color:var(--teal)}
+  .sub{color:var(--muted);font-size:14.5px;max-width:52ch}
+
+  /* Stepper rail */
+  .rail{display:flex;gap:6px;margin:20px 0 18px;flex-wrap:wrap}
+  .rail .node{
+    font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+    color:var(--faint);display:flex;align-items:center;gap:7px;
+  }
+  .rail .dot{width:8px;height:8px;border-radius:50%;background:var(--line-strong);transition:.2s}
+  .rail .node.active .dot{background:var(--teal);box-shadow:0 0 0 4px var(--teal-soft)}
+  .rail .node.active{color:var(--ink)}
+  .rail .node.done .dot{background:var(--green)}
+  .rail .sep{color:var(--line-strong);align-self:center}
+
+  /* Card */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:24px 22px;box-shadow:var(--shadow);
+  }
+  .step-title{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:-.01em}
+  .step-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+  .step-note{color:var(--muted);font-size:13.5px;margin-top:6px}
+
+  /* Confounder chips */
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:18px}
+  .chip{
+    border:1px solid var(--line-strong);background:#fafcfd;border-radius:11px;
+    padding:11px 13px;cursor:pointer;font-size:13.5px;font-weight:450;
+    display:flex;align-items:center;gap:9px;transition:.14s;user-select:none;color:var(--ink);
+  }
+  .chip .box{width:17px;height:17px;border:1.5px solid var(--line-strong);border-radius:5px;flex:none;display:grid;place-items:center;transition:.14s}
+  .chip .box svg{width:11px;height:11px;opacity:0;transform:scale(.6);transition:.14s}
+  .chip small{display:block;color:var(--faint);font-size:11px;margin-top:1px}
+  .chip:hover{border-color:var(--amber)}
+  .chip.on{border-color:var(--amber);background:var(--amber-soft)}
+  .chip.on .box{background:var(--amber);border-color:var(--amber)}
+  .chip.on .box svg{opacity:1;transform:scale(1)}
+  .chip .lbl{line-height:1.25}
+
+  /* Inputs */
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin-top:20px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:13px;font-weight:500;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .field label .cut{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:500;letter-spacing:.02em}
+  .inp{position:relative;display:flex;align-items:center}
+  .inp input{
+    width:100%;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink);
+    border:1px solid var(--line-strong);border-radius:10px;padding:11px 44px 11px 13px;
+    background:#fff;transition:.14s;-moz-appearance:textfield;
+  }
+  .inp input::-webkit-outer-spin-button,.inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .inp input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+  .inp .unit{position:absolute;right:12px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none}
+  .inp input.abn{border-color:var(--red);background:var(--red-soft)}
+  .inp input.norm{border-color:var(--green)}
+  .grouplabel{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:4px 0 -4px;display:flex;align-items:center;gap:8px}
+  .grouplabel::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* advanced accordion */
+  .adv{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
+  .adv summary{cursor:pointer;font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);font-weight:600;list-style:none;display:flex;align-items:center;gap:7px}
+  .adv summary::-webkit-details-marker{display:none}
+  .adv summary::before{content:"+";font-size:15px;line-height:1}
+  .adv[open] summary::before{content:"–"}
+
+  /* criteria strip */
+  .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:20px}
+  .pill{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fafcfd}
+  .pill .t{font-size:11px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+  .pill .v{font-family:var(--disp);font-weight:600;font-size:14px;margin-top:3px;display:flex;align-items:center;gap:6px}
+  .tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:20px}
+  .tag.ok{color:var(--green);background:var(--green-soft)}
+  .tag.bad{color:var(--red);background:var(--red-soft)}
+  .tag.na{color:var(--faint);background:var(--surface)}
+  .pill.bad{border-color:#f0c9c5;background:var(--red-soft)}
+  .pill.ok{border-color:#c6e6d3;background:var(--green-soft)}
+
+  /* buttons */
+  .actions{display:flex;gap:10px;margin-top:24px;align-items:center;flex-wrap:wrap}
+  .btn{
+    font-family:var(--body);font-weight:600;font-size:14px;border-radius:10px;
+    padding:12px 20px;cursor:pointer;border:1px solid transparent;transition:.14s;
+  }
+  .btn.primary{background:var(--teal);color:#fff}
+  .btn.primary:hover{background:var(--teal-deep)}
+  .btn.ghost{background:#fff;border-color:var(--line-strong);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--teal);color:var(--teal)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .spacer{flex:1}
+  .hint{font-size:12.5px;color:var(--faint)}
+
+  /* result */
+  .verdict{border-radius:16px;padding:22px 22px 20px;color:#fff;position:relative;overflow:hidden}
+  .verdict.normal{background:linear-gradient(135deg,#1c7a4b,#14603a)}
+  .verdict.g1{background:linear-gradient(135deg,#2b7f92,#154c59)}
+  .verdict.g2{background:linear-gradient(135deg,#c06a10,#9a4d08)}
+  .verdict.g3{background:linear-gradient(135deg,#b02a20,#84160f)}
+  .verdict.indet{background:linear-gradient(135deg,#5a6b78,#3a4650)}
+  .verdict .grade{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
+  .verdict h2{font-family:var(--disp);font-weight:600;font-size:clamp(22px,5vw,30px);letter-spacing:-.02em;line-height:1.08;margin:6px 0 4px}
+  .verdict .lap{font-size:14px;opacity:.92}
+  .verdict .lapbadge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:20px;margin-top:10px}
+
+  .reason{margin-top:18px}
+  .reason h3{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+  .rlist{display:flex;flex-direction:column;gap:8px}
+  .ritem{display:flex;gap:11px;align-items:flex-start;font-size:13.5px}
+  .ritem .mk{width:6px;height:6px;border-radius:50%;margin-top:7px;flex:none}
+  .ritem .mk.bad{background:var(--red)} .ritem .mk.ok{background:var(--green)} .ritem .mk.neut{background:var(--teal)}
+  .ritem b{font-weight:600}
+  .ritem code{font-family:var(--mono);font-size:12.5px;background:var(--surface);padding:1px 6px;border-radius:5px}
+
+  /* path trace */
+  .trace{margin-top:20px;background:#fafcfd;border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px}
+  .trace h3{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 4px}
+  .fnode{font-family:var(--disp);font-weight:600;font-size:12.5px;padding:7px 12px;border-radius:9px;border:1px solid var(--line-strong);background:#fff;color:var(--ink)}
+  .fnode.teal{background:var(--teal-soft);border-color:#bcd6dd;color:var(--teal-deep)}
+  .fnode.purple{background:var(--purple-soft);border-color:#d6c9e8;color:var(--purple)}
+  .fnode.green{background:var(--green-soft);border-color:#c6e6d3;color:var(--green)}
+  .fnode.red{background:var(--red-soft);border-color:#f0c9c5;color:var(--red)}
+  .fnode.amber{background:var(--amber-soft);border-color:#ecd8a6;color:var(--amber)}
+  .farrow{color:var(--line-strong);font-size:14px}
+
+  .callout{margin-top:18px;border-radius:11px;padding:13px 15px;font-size:13.5px;display:flex;gap:11px;align-items:flex-start}
+  .callout.amber{background:var(--amber-soft);color:#7a5104}
+  .callout.teal{background:var(--teal-soft);color:var(--teal-deep)}
+  .callout .ico{flex:none;margin-top:1px}
+
+  footer{margin-top:22px;text-align:center;font-size:11.5px;color:var(--faint);line-height:1.6}
+  footer code{font-family:var(--mono)}
+
+  .hidden{display:none !important}
+  @media(max-width:560px){
+    .fields{grid-template-columns:1fr}
+    .strip{grid-template-columns:1fr}
+    .card{padding:20px 16px}
+    body{padding:18px 12px 60px}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Echocardiography · ASE algorithm</div>
+    <h1>LV Diastolic Function <em>&amp; LAP</em> Estimator</h1>
+    <p class="sub">Walks the ASE grading algorithm from measured indices. Enter what you have; it asks for more only when the branch needs it, then returns the grade and left atrial pressure estimate.</p>
+    <nav class="rail" id="rail">
+      <span class="node" data-step="0"><span class="dot"></span>Confounders</span>
+      <span class="sep">·</span>
+      <span class="node" data-step="1"><span class="dot"></span>Core indices</span>
+      <span class="sep">·</span>
+      <span class="node" data-step="2"><span class="dot"></span>LAP markers</span>
+      <span class="sep">·</span>
+      <span class="node" data-step="3"><span class="dot"></span>Result</span>
+    </nav>
+  </header>
+
+  <!-- STEP 0 — CONFOUNDERS -->
+  <section class="card" id="step0">
+    <div class="step-kicker">Step 1 — Applicability gate</div>
+    <div class="step-title">Any of these present?</div>
+    <p class="step-note">These conditions invalidate the standard grading algorithm. If any apply, the study is graded <b>indeterminate</b> and a condition-specific approach is used instead.</p>
+    <div class="chips" id="confounders"></div>
+    <div class="actions">
+      <button class="btn primary" id="c-continue">Continue</button>
+      <span class="hint" id="c-hint">Select all that apply, or continue if none.</span>
+    </div>
+  </section>
+
+  <!-- STEP 1 — CORE INDICES -->
+  <section class="card hidden" id="step1">
+    <div class="step-kicker">Step 2 — Three core criteria + mitral inflow</div>
+    <div class="step-title">Enter measured indices</div>
+    <p class="step-note">Average values drive the algorithm. Use the advanced panel for site-specific (septal / lateral) cutoffs if the averages aren't available.</p>
+    <div class="fields">
+      <div class="grouplabel">Criterion 1 — annular e′ velocity</div>
+      <div class="field">
+        <label>Average e′ <span class="cut">abn ≤ 6.5</span></label>
+        <div class="inp"><input id="ePrimeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
+      </div>
+      <div class="field">
+        <label>TR velocity <span class="cut">abn ≥ 2.8</span></label>
+        <div class="inp"><input id="trVel" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">m/s</span></div>
+      </div>
+      <div class="grouplabel">Criterion 2 — filling pressure surrogate</div>
+      <div class="field">
+        <label>Average E/e′ <span class="cut">abn ≥ 14</span></label>
+        <div class="inp"><input id="EeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
+      </div>
+      <div class="field">
+        <label>PASP <span class="cut">alt ≥ 35</span></label>
+        <div class="inp"><input id="pasp" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">mmHg</span></div>
+      </div>
+      <div class="grouplabel">Mitral inflow — for E/A branching</div>
+      <div class="field">
+        <label>Peak E <span class="cut">early</span></label>
+        <div class="inp"><input id="mitE" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
+      </div>
+      <div class="field">
+        <label>Peak A <span class="cut">atrial</span></label>
+        <div class="inp"><input id="mitA" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
+      </div>
+    </div>
+
+    <details class="adv">
+      <summary>Advanced — site-specific cutoffs</summary>
+      <div class="fields">
+        <div class="field">
+          <label>Septal e′ <span class="cut">abn ≤ 6</span></label>
+          <div class="inp"><input id="ePrimeSep" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
+        </div>
+        <div class="field">
+          <label>Lateral e′ <span class="cut">abn ≤ 7</span></label>
+          <div class="inp"><input id="ePrimeLat" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
+        </div>
+        <div class="field">
+          <label>Septal E/e′ <span class="cut">abn ≥ 15</span></label>
+          <div class="inp"><input id="EeSep" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
+        </div>
+        <div class="field">
+          <label>Lateral E/e′ <span class="cut">abn ≥ 13</span></label>
+          <div class="inp"><input id="EeLat" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
+        </div>
+      </div>
+      <p class="step-note" style="margin-top:10px">A criterion is abnormal if <b>any</b> entered site meets its threshold.</p>
+    </details>
+
+    <div class="strip" id="strip"></div>
+
+    <div class="actions">
+      <button class="btn ghost" id="s1-back">Back</button>
+      <div class="spacer"></div>
+      <button class="btn primary" id="s1-next">Grade study →</button>
+    </div>
+    <p class="hint" id="s1-hint" style="margin-top:12px"></p>
+  </section>
+
+  <!-- STEP 2 — LAP MARKERS (purple box) -->
+  <section class="card hidden" id="step2">
+    <div class="step-kicker">Step 3 — Additional LAP markers</div>
+    <div class="step-title">Left atrial pressure indeterminate — refine it</div>
+    <p class="step-note" id="s2-context"></p>
+    <div class="fields">
+      <div class="field">
+        <label>Pulmonary vein S/D <span class="cut">abn ≤ 0.67</span></label>
+        <div class="inp"><input id="pvSD" type="number" step="0.01" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
+      </div>
+      <div class="field">
+        <label>LA reservoir strain <span class="cut">abn ≤ 18</span></label>
+        <div class="inp"><input id="lars" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">%</span></div>
+      </div>
+      <div class="field">
+        <label>LAVi <span class="cut">abn &gt; 34</span></label>
+        <div class="inp"><input id="lavi" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">mL/m²</span></div>
+      </div>
+      <div class="field">
+        <label>IVRT <span class="cut">alt ≤ 70</span></label>
+        <div class="inp"><input id="ivrt" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">ms</span></div>
+      </div>
+    </div>
+    <div class="callout teal" id="s2-live" style="margin-top:16px">
+      <span class="ico">◆</span>
+      <span id="s2-livetext">Enter any available markers. If ≥ 1 is abnormal → increased LAP.</span>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="s2-back">Back</button>
+      <div class="spacer"></div>
+      <button class="btn primary" id="s2-next">Finalize →</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="hidden" id="result"></section>
+
+  <footer>
+    Implements the ASE LV diastolic function &amp; LAP estimation algorithm. Decision-support only — clinical correlation and reader judgment govern.<br>
+    Runs fully offline · no data leaves the page · <code>diastology.html</code>
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const CHECK = '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2L4.6 9 10 3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const CONFOUNDERS = [
+  ["mac","Mitral annular calcification","MAC"],
+  ["mr","≥ Moderate mitral regurgitation","MR"],
+  ["ms","Mitral stenosis","MS"],
+  ["afib","Atrial fibrillation","AF"],
+  ["lvad","LVAD"],
+  ["ncph","Non-cardiac pulmonary HTN"],
+  ["htx","Heart transplant","HTx"],
+  ["peri","Pericardial constriction"],
+];
+
+const state = { confounders:new Set() };
+
+/* ---------- build confounder chips ---------- */
+const cbox = $("confounders");
+CONFOUNDERS.forEach(([id,label,abbr])=>{
+  const el = document.createElement("div");
+  el.className = "chip"; el.dataset.id = id;
+  el.innerHTML = `<span class="box">${CHECK}</span><span class="lbl">${label}${abbr?`<small>${abbr}</small>`:""}</span>`;
+  el.addEventListener("click",()=>{
+    el.classList.toggle("on");
+    if(el.classList.contains("on")) state.confounders.add(id); else state.confounders.delete(id);
+    const any = state.confounders.size>0;
+    $("c-continue").textContent = any ? "Grade as indeterminate" : "Continue";
+    $("c-hint").textContent = any ? "One or more confounders selected — algorithm not applicable." : "Select all that apply, or continue if none.";
+  });
+  cbox.appendChild(el);
+});
+
+/* ---------- helpers ---------- */
+const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? null : v; };
+const has = v => v !== null && v !== undefined;
+
+function evalCore(){
+  const ePavg=num("ePrimeAvg"), ePsep=num("ePrimeSep"), ePlat=num("ePrimeLat");
+  const Eavg=num("EeAvg"), Esep=num("EeSep"), Elat=num("EeLat");
+  const tr=num("trVel"), pasp=num("pasp");
+
+  // Criterion 1 — reduced e' (abnormal = low)
+  const c1parts=[];
+  if(has(ePavg)) c1parts.push(ePavg<=6.5);
+  if(has(ePsep)) c1parts.push(ePsep<=6);
+  if(has(ePlat)) c1parts.push(ePlat<=7);
+  const c1has=c1parts.length>0, c1=c1parts.some(Boolean);
+
+  // Criterion 2 — increased E/e'
+  const c2parts=[];
+  if(has(Eavg)) c2parts.push(Eavg>=14);
+  if(has(Esep)) c2parts.push(Esep>=15);
+  if(has(Elat)) c2parts.push(Elat>=13);
+  const c2has=c2parts.length>0, c2=c2parts.some(Boolean);
+
+  // Criterion 3 — increased TR / PASP
+  const c3parts=[];
+  if(has(tr)) c3parts.push(tr>=2.8);
+  if(has(pasp)) c3parts.push(pasp>=35);
+  const c3has=c3parts.length>0, c3=c3parts.some(Boolean);
+
+  return {c1,c2,c3,c1has,c2has,c3has,
+    values:{ePavg,ePsep,ePlat,Eavg,Esep,Elat,tr,pasp}};
+}
+
+function eaRatio(){
+  const E=num("mitE"), A=num("mitA");
+  if(has(E)&&has(A)&&A>0) return E/A;
+  return null;
+}
+
+/* ---------- criteria strip live render ---------- */
+function renderStrip(){
+  const c = evalCore();
+  const strip = $("strip");
+  const cell = (title,active,assessed,detail)=>{
+    const cls = !assessed ? "" : (active ? "bad" : "ok");
+    const tag = !assessed ? `<span class="tag na">no data</span>` : (active?`<span class="tag bad">abnormal</span>`:`<span class="tag ok">normal</span>`);
+    return `<div class="pill ${cls}"><div class="t">${title}</div><div class="v">${detail} ${tag}</div></div>`;
+  };
+  strip.innerHTML =
+    cell("① Reduced e′", c.c1, c.c1has, "e′") +
+    cell("② ↑ E/e′", c.c2, c.c2has, "E/e′") +
+    cell("③ ↑ TR / PASP", c.c3, c.c3has, "TR");
+
+  // enable/disable next + hint
+  const assessedCount=[c.c1has,c.c2has,c.c3has].filter(Boolean).length;
+  const ok = assessedCount===3;
+  $("s1-next").disabled = !ok;
+  $("s1-hint").textContent = ok ? "" : `All three criteria must be assessed (${assessedCount}/3 entered). Missing a criterion changes the grade — enter a value or its site-specific equivalent.`;
+}
+
+/* ---------- navigation ---------- */
+function show(step){
+  ["step0","step1","step2","result"].forEach((s,i)=>$(s).classList.toggle("hidden", i!==step));
+  const rail=[...document.querySelectorAll("#rail .node")];
+  rail.forEach((n,i)=>{ n.classList.toggle("active", i===step); n.classList.toggle("done", i<step); });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* Step 0 */
+$("c-continue").addEventListener("click",()=>{
+  if(state.confounders.size>0){ renderResult(buildIndeterminate()); return; }
+  show(1); renderStrip();
+});
+
+/* Step 1 */
+$("s1-back").addEventListener("click",()=>show(0));
+["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp","mitE","mitA"]
+  .forEach(id=>$(id).addEventListener("input",renderStrip));
+$("s1-next").addEventListener("click",()=>{
+  const r = decide();
+  if(r.needAdditional){ prepAdditional(r); show(2); }
+  else renderResult(r);
+});
+
+/* Step 2 */
+$("s2-back").addEventListener("click",()=>show(1));
+["pvSD","lars","lavi","ivrt"].forEach(id=>$(id).addEventListener("input",updateS2Live));
+$("s2-next").addEventListener("click",()=>renderResult(finalizeAdditional()));
+
+/* ---------- decision engine ---------- */
+function decide(){
+  const c = evalCore();
+  const n = [c.c1,c.c2,c.c3].filter(Boolean).length;
+  const ea = eaRatio();
+  const path = [{cls:"teal",t:"3 criteria assessed"}];
+
+  // n = 0 → normal DF
+  if(n===0){
+    path.push({cls:"teal",t:"All normal"},{cls:"green",t:"Normal LAP"},{cls:"green",t:"Normal DF"});
+    return finish("normal",{grade:"Normal",title:"Normal diastolic function",lap:"normal",path,core:c,ea});
+  }
+  // n = 3 → increased LAP
+  if(n===3){
+    path.push({cls:"teal",t:"3 of the above"},{cls:"red",t:"Increased LAP"});
+    return gradeIncreased(ea,path,c);
+  }
+  // n = 1, reduced e' only → E/A gate
+  if(n===1 && c.c1){
+    path.push({cls:"teal",t:"Reduced e′ only"});
+    if(!has(ea)) return finish("indet_ea",{title:"Enter mitral E and A",path,core:c,ea,needEA:true});
+    if(ea<=0.8){
+      path.push({cls:"teal",t:"E/A ≤ 0.8"},{cls:"green",t:"Normal LAP"},{cls:"green",t:"Grade 1"});
+      return finish("g1",{grade:"Grade 1",title:"Grade 1 diastolic dysfunction",lap:"normal",path,core:c,ea});
+    }
+    path.push({cls:"teal",t:"E/A > 0.8"});
+    return {needAdditional:true,pathSoFar:path,core:c,ea,branchLabel:"Reduced e′ only · E/A > 0.8"};
+  }
+  // n = 1 (E/e' only or TR only) OR n = 2 → purple box
+  let label = n===2 ? "Any 2 abnormal" : (c.c2 ? "↑ E/e′ only" : "↑ TR / PASP only");
+  path.push({cls:"teal",t:label});
+  return {needAdditional:true,pathSoFar:path,core:c,ea,branchLabel:label};
+}
+
+function prepAdditional(r){
+  $("s2-context").innerHTML = `Reached the additional-variables box via <b>${r.branchLabel}</b>. Enter any available markers — a single abnormal value indicates increased LAP.`;
+  ["pvSD","lars","lavi","ivrt"].forEach(id=>$(id).value="");
+  state._pending = r;
+  updateS2Live();
+}
+
+function updateS2Live(){
+  const m = additionalMarkers();
+  const t = $("s2-livetext");
+  if(m.assessed===0){ t.textContent = "No markers entered yet. If none are available or reliable, supplemental methods are recommended."; return; }
+  if(m.abnormal>=1){ t.innerHTML = `<b>${m.abnormal}</b> abnormal marker${m.abnormal>1?"s":""} of ${m.assessed} → <b>increased LAP</b>.`; }
+  else { t.innerHTML = `All ${m.assessed} entered marker${m.assessed>1?"s":""} normal → <b>normal LAP</b>.`; }
+}
+
+function additionalMarkers(){
+  const pv=num("pvSD"), la=num("lars"), lv=num("lavi"), iv=num("ivrt");
+  const list=[];
+  if(has(pv)) list.push({name:"Pulm vein S/D",val:pv,abn:pv<=0.67,cut:"≤ 0.67"});
+  if(has(la)) list.push({name:"LA reservoir strain",val:la+"%",abn:la<=18,cut:"≤ 18%"});
+  if(has(lv)) list.push({name:"LAVi",val:lv+" mL/m²",abn:lv>34,cut:"> 34"});
+  if(has(iv)) list.push({name:"IVRT",val:iv+" ms",abn:iv<=70,cut:"≤ 70 ms"});
+  return {list,assessed:list.length,abnormal:list.filter(x=>x.abn).length};
+}
+
+function finalizeAdditional(){
+  const r = state._pending;
+  const m = additionalMarkers();
+  const path = [...r.pathSoFar,{cls:"purple",t:"Additional LAP markers"}];
+  if(m.assessed===0){
+    path.push({cls:"amber",t:"None available"});
+    return finish("indet_supp",{title:"LAP indeterminate — supplemental methods",lap:"indet",path,core:r.core,ea:r.ea,markers:m,supp:true});
+  }
+  if(m.abnormal>=1){
+    path.push({cls:"purple",t:`≥ 1 present (${m.abnormal})`},{cls:"red",t:"Increased LAP"});
+    return gradeIncreased(r.ea,path,r.core,m);
+  }
+  path.push({cls:"purple",t:"None present"},{cls:"green",t:"Normal LAP"},{cls:"green",t:"Grade 1"});
+  return finish("g1",{grade:"Grade 1",title:"Grade 1 diastolic dysfunction",lap:"normal",path,core:r.core,ea:r.ea,markers:m});
+}
+
+function gradeIncreased(ea,path,core,markers){
+  if(!has(ea)) return finish("indet_ea",{title:"Enter mitral E and A to grade",path,core,ea,markers,needEA:true});
+  if(ea<2){
+    path.push({cls:"teal",t:"E/A < 2"},{cls:"red",t:"Grade 2"});
+    return finish("g2",{grade:"Grade 2",title:"Grade 2 diastolic dysfunction",lap:"increased",lapMod:"Mild / moderate ↑ LAP",path,core,ea,markers});
+  }
+  path.push({cls:"teal",t:"E/A ≥ 2"},{cls:"red",t:"Grade 3"});
+  return finish("g3",{grade:"Grade 3",title:"Grade 3 diastolic dysfunction",lap:"increased",lapMod:"Marked ↑ LAP",path,core,ea,markers});
+}
+
+function finish(kind,data){ return {done:true,kind,...data}; }
+
+function buildIndeterminate(){
+  const names = CONFOUNDERS.filter(c=>state.confounders.has(c[0])).map(c=>c[1]);
+  return {done:true,kind:"indet_conf",title:"Indeterminate — algorithm not applicable",lap:"indet",
+    path:[{cls:"amber",t:"Confounder present"},{cls:"amber",t:"Indeterminate"}],confounders:names};
+}
+
+/* ---------- result rendering ---------- */
+function renderResult(r){
+  if(r.needEA){
+    // send user back to fill E/A
+    $("s1-hint").textContent = "Mitral E and A are required to complete grading — enter both.";
+    $("mitE").classList.add("norm"); $("mitA").classList.add("norm");
+    show(1); return;
+  }
+  const el = $("result"); el.classList.remove("hidden");
+  ["step0","step1","step2"].forEach(s=>$(s).classList.add("hidden"));
+  const rail=[...document.querySelectorAll("#rail .node")];
+  rail.forEach((n,i)=>{n.classList.toggle("active",i===3);n.classList.toggle("done",i<3);});
+
+  const theme = {normal:"normal",g1:"g1",g2:"g2",g3:"g3"}[r.kind] ||
+                (r.kind.startsWith("indet")?"indet":"g1");
+
+  const lapBadge = r.lap==="normal" ? "Normal LAP"
+                 : r.lap==="increased" ? (r.lapMod||"Increased LAP")
+                 : "LAP indeterminate";
+
+  // reasons
+  let reasons = "";
+  if(r.core){
+    const c=r.core, v=c.values;
+    const line=(mk,label,detail)=>`<div class="ritem"><span class="mk ${mk}"></span><span><b>${label}</b> — ${detail}</span></div>`;
+    const critDetail=(assessed,active,parts)=>{
+      if(!assessed) return line("neut","not assessed","—");
+      return line(active?"bad":"ok", active?"abnormal":"normal", parts);
+    };
+    const p1=[]; if(has(v.ePavg))p1.push(`avg e′ <code>${v.ePavg}</code>`); if(has(v.ePsep))p1.push(`septal <code>${v.ePsep}</code>`); if(has(v.ePlat))p1.push(`lateral <code>${v.ePlat}</code>`);
+    const p2=[]; if(has(v.Eavg))p2.push(`avg E/e′ <code>${v.Eavg}</code>`); if(has(v.Esep))p2.push(`septal <code>${v.Esep}</code>`); if(has(v.Elat))p2.push(`lateral <code>${v.Elat}</code>`);
+    const p3=[]; if(has(v.tr))p3.push(`TR vel <code>${v.tr}</code>`); if(has(v.pasp))p3.push(`PASP <code>${v.pasp}</code>`);
+    reasons += `<div class="reason"><h3>Core criteria</h3><div class="rlist">`;
+    reasons += critDetail(c.c1has,c.c1,`① reduced e′ · ${p1.join(", ")||"—"}`);
+    reasons += critDetail(c.c2has,c.c2,`② ↑ E/e′ · ${p2.join(", ")||"—"}`);
+    reasons += critDetail(c.c3has,c.c3,`③ ↑ TR/PASP · ${p3.join(", ")||"—"}`);
+    if(has(r.ea)) reasons += `<div class="ritem"><span class="mk neut"></span><span><b>E/A</b> — <code>${r.ea.toFixed(2)}</code></span></div>`;
+    reasons += `</div></div>`;
+  }
+  if(r.markers && r.markers.list.length){
+    reasons += `<div class="reason"><h3>LAP markers</h3><div class="rlist">`;
+    r.markers.list.forEach(m=>{
+      reasons += `<div class="ritem"><span class="mk ${m.abn?"bad":"ok"}"></span><span><b>${m.name}</b> — <code>${m.val}</code> (${m.abn?"abnormal":"normal"}, cut ${m.cut})</span></div>`;
+    });
+    reasons += `</div></div>`;
+  }
+  if(r.confounders){
+    reasons += `<div class="reason"><h3>Confounders selected</h3><div class="rlist">` +
+      r.confounders.map(c=>`<div class="ritem"><span class="mk bad"></span><span>${c}</span></div>`).join("") +
+      `</div></div>`;
+  }
+
+  // path trace
+  let flow = "";
+  if(r.path){
+    flow = `<div class="trace"><h3>Decision path</h3><div class="flow">` +
+      r.path.map((p,i)=>`${i?'<span class="farrow">→</span>':''}<span class="fnode ${p.cls}">${p.t}</span>`).join("") +
+      `</div></div>`;
+  }
+
+  // callouts
+  let callout = "";
+  if(r.kind==="g1"){
+    callout = `<div class="callout teal"><span class="ico">◆</span><span><b>If symptomatic</b>, consider a diastolic (exercise) stress echo to unmask elevated filling pressures.</span></div>`;
+  } else if(r.kind==="indet_conf"){
+    callout = `<div class="callout amber"><span class="ico">▲</span><span>Standard cutoffs don't hold with these conditions. Grade using the entity-specific approach (e.g. dedicated MR/MS/AF or constriction algorithms).</span></div>`;
+  } else if(r.kind==="indet_supp"){
+    callout = `<div class="callout amber"><span class="ico">▲</span><span>No pulmonary-vein, strain, LAVi, or IVRT data entered. Use supplemental methods (e.g. Valsalva ΔE/A, pulmonary vein Ar-A duration) before assigning LAP.</span></div>`;
+  }
+
+  el.innerHTML = `
+    <div class="verdict ${theme}">
+      <div class="grade">${r.grade||"Result"}</div>
+      <h2>${r.title}</h2>
+      <div class="lap">Left atrial pressure estimate</div>
+      <div class="lapbadge">${lapBadge}</div>
+    </div>
+    ${reasons}
+    ${flow}
+    ${callout}
+    <div class="actions">
+      <button class="btn ghost" id="r-edit">← Edit indices</button>
+      <div class="spacer"></div>
+      <button class="btn primary" id="r-reset">New study</button>
+    </div>`;
+  window.scrollTo({top:0,behavior:"smooth"});
+
+  $("r-reset").addEventListener("click",resetAll);
+  $("r-edit").addEventListener("click",()=>{ el.classList.add("hidden"); show(1); renderStrip(); });
+}
+
+function resetAll(){
+  state.confounders.clear(); delete state._pending;
+  document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
+  ["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp","mitE","mitA","pvSD","lars","lavi","ivrt"]
+    .forEach(id=>{$(id).value="";$(id).classList.remove("norm","abn");});
+  $("c-continue").textContent="Continue";
+  $("c-hint").textContent="Select all that apply, or continue if none.";
+  $("result").classList.add("hidden");
+  show(0);
+}
+
+/* init */
+show(0);
+</script>
+</body>
+</html>
