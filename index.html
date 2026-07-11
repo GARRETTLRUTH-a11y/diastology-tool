@@ -21,6 +21,16 @@
 <meta name="twitter:description" content="Simplify. Analyze. Diagnose. Stepwise ASE diastolic function & LAP grading — free, runs entirely in your browser.">
 <meta name="twitter:image" content="https://diastologytool.netlify.app/og-image.jpg">
 
+<!-- Home-screen icon (iOS "Add to Home Screen" / Android PWA install) -->
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#154c59">
+<meta name="apple-mobile-web-app-title" content="Diastology">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -49,6 +59,8 @@
 
   /* Header */
   header{margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .brand-logo{width:36px;height:36px;border-radius:9px;flex:none;box-shadow:0 2px 8px rgba(17,26,34,.18)}
   .eyebrow{
     font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
     color:var(--teal); font-weight:600; display:flex; align-items:center; gap:8px;
@@ -235,7 +247,10 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Echocardiography · ASE algorithm</div>
+    <div class="brand">
+      <img src="logo.png" alt="Diastology Tool" class="brand-logo" width="36" height="36">
+      <div class="eyebrow">Echocardiography · ASE algorithm</div>
+    </div>
     <h1>LV Diastolic Function <em>&amp; LAP</em> Estimator</h1>
     <p class="sub">Walks the ASE grading algorithm from measured indices. Enter what you have; it asks for more only when the branch needs it, then returns the grade and left atrial pressure estimate.</p>
     <nav class="rail" id="rail">
