@@ -85,7 +85,8 @@
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin-top:20px}
   .field{display:flex;flex-direction:column;gap:6px}
   .field.full{grid-column:1/-1}
-  .field label{font-size:13px;font-weight:500;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .field label{font-size:13px;font-weight:500;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .field label .lbl-main{display:inline-flex;align-items:baseline;gap:6px}
   .field label .cut{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:500;letter-spacing:.02em}
   .inp{position:relative;display:flex;align-items:center}
   .inp input{
@@ -98,8 +99,35 @@
   .inp .unit{position:absolute;right:12px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none}
   .inp input.abn{border-color:var(--red);background:var(--red-soft)}
   .inp input.norm{border-color:var(--green)}
+  .inp input:disabled{background:var(--surface);color:var(--faint);cursor:not-allowed}
+  .inp input.abn:disabled{background:var(--red-soft);color:var(--red)}
+  .inp input.norm:disabled{background:var(--green-soft);color:var(--green)}
   .grouplabel{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:4px 0 -4px;display:flex;align-items:center;gap:8px}
   .grouplabel::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* quick-pick buttons */
+  .qp{display:flex;gap:6px;margin-top:6px}
+  .qbtn{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;
+    font-family:var(--mono);font-weight:600;font-size:12px;line-height:1.2;
+    padding:7px 6px;border-radius:8px;border:1px solid var(--line-strong);
+    background:#fafcfd;color:var(--ink);cursor:pointer;transition:.14s;text-align:center;
+  }
+  .qbtn .qtag{font-family:var(--body);font-weight:500;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+  .qbtn:hover{border-color:var(--teal)}
+  .qbtn.active{color:#fff}
+  .qbtn.abn.active{background:var(--red);border-color:var(--red)}
+  .qbtn.abn.active .qtag{color:rgba(255,255,255,.85)}
+  .qbtn.norm.active{background:var(--green);border-color:var(--green)}
+  .qbtn.norm.active .qtag{color:rgba(255,255,255,.85)}
+
+  /* required / optional / alternate tags */
+  .reqtag{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:20px;white-space:nowrap}
+  .reqtag.req{color:var(--teal-deep);background:var(--teal-soft)}
+  .reqtag.alt{color:var(--amber);background:var(--amber-soft)}
+  .reqtag.opt{color:var(--faint);background:var(--surface)}
+  .legend{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);margin-top:2px}
+  .legend b{font-weight:500}
 
   /* advanced accordion */
   .adv{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
@@ -220,52 +248,58 @@
     <div class="step-title">Enter measured indices</div>
     <p class="step-note">Average values drive the algorithm. Use the advanced panel for site-specific (septal / lateral) cutoffs if the averages aren't available.</p>
     <div class="fields">
+      <div class="legend">
+        <span><span class="reqtag req">Required</span> primary variable</span>
+        <span><span class="reqtag alt">Alternate</span> use if primary unavailable</span>
+        <span><span class="reqtag opt">Optional</span> improves precision</span>
+      </div>
       <div class="grouplabel">Criterion 1 — annular e′ velocity</div>
       <div class="field">
-        <label>Average e′ <span class="cut">abn ≤ 6.5</span></label>
+        <label><span class="lbl-main">Average e′ <span class="reqtag req">required</span></span> <span class="cut">abn ≤ 6.5</span></label>
         <div class="inp"><input id="ePrimeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
       <div class="field">
-        <label>TR velocity <span class="cut">abn ≥ 2.8</span></label>
+        <label><span class="lbl-main">TR velocity <span class="reqtag req">required</span></span> <span class="cut">abn ≥ 2.8</span></label>
         <div class="inp"><input id="trVel" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">m/s</span></div>
       </div>
       <div class="grouplabel">Criterion 2 — filling pressure surrogate</div>
       <div class="field">
-        <label>Average E/e′ <span class="cut">abn ≥ 14</span></label>
+        <label><span class="lbl-main">Average E/e′ <span class="reqtag req">required</span></span> <span class="cut">abn ≥ 14</span></label>
         <div class="inp"><input id="EeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
       </div>
       <div class="field">
-        <label>PASP <span class="cut">alt ≥ 35</span></label>
+        <label><span class="lbl-main">PASP <span class="reqtag alt">alternate</span></span> <span class="cut">alt ≥ 35</span></label>
         <div class="inp"><input id="pasp" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">mmHg</span></div>
       </div>
       <div class="grouplabel">Mitral inflow — for E/A branching</div>
       <div class="field">
-        <label>Peak E <span class="cut">early</span></label>
+        <label><span class="lbl-main">Peak E <span class="reqtag req">required</span></span> <span class="cut">early</span></label>
         <div class="inp"><input id="mitE" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
       <div class="field">
-        <label>Peak A <span class="cut">atrial</span></label>
+        <label><span class="lbl-main">Peak A <span class="reqtag req">required</span></span> <span class="cut">atrial</span></label>
         <div class="inp"><input id="mitA" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
     </div>
+    <p class="step-note" style="margin-top:4px">Peak E/A are only used by some branches, but almost every path ends up needing them — enter them up front to avoid a round trip.</p>
 
     <details class="adv">
       <summary>Advanced — site-specific cutoffs</summary>
       <div class="fields">
         <div class="field">
-          <label>Septal e′ <span class="cut">abn ≤ 6</span></label>
+          <label><span class="lbl-main">Septal e′ <span class="reqtag alt">alternate</span></span> <span class="cut">abn ≤ 6</span></label>
           <div class="inp"><input id="ePrimeSep" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
         </div>
         <div class="field">
-          <label>Lateral e′ <span class="cut">abn ≤ 7</span></label>
+          <label><span class="lbl-main">Lateral e′ <span class="reqtag alt">alternate</span></span> <span class="cut">abn ≤ 7</span></label>
           <div class="inp"><input id="ePrimeLat" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
         </div>
         <div class="field">
-          <label>Septal E/e′ <span class="cut">abn ≥ 15</span></label>
+          <label><span class="lbl-main">Septal E/e′ <span class="reqtag alt">alternate</span></span> <span class="cut">abn ≥ 15</span></label>
           <div class="inp"><input id="EeSep" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
         </div>
         <div class="field">
-          <label>Lateral E/e′ <span class="cut">abn ≥ 13</span></label>
+          <label><span class="lbl-main">Lateral E/e′ <span class="reqtag alt">alternate</span></span> <span class="cut">abn ≥ 13</span></label>
           <div class="inp"><input id="EeLat" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
         </div>
       </div>
@@ -288,20 +322,21 @@
     <div class="step-title">Left atrial pressure indeterminate — refine it</div>
     <p class="step-note" id="s2-context"></p>
     <div class="fields">
+      <div class="legend"><span><span class="reqtag opt">Optional</span> none are required — enter any that are available. At least one abnormal marker → increased LAP.</span></div>
       <div class="field">
-        <label>Pulmonary vein S/D <span class="cut">abn ≤ 0.67</span></label>
+        <label><span class="lbl-main">Pulmonary vein S/D <span class="reqtag opt">optional</span></span> <span class="cut">abn ≤ 0.67</span></label>
         <div class="inp"><input id="pvSD" type="number" step="0.01" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
       </div>
       <div class="field">
-        <label>LA reservoir strain <span class="cut">abn ≤ 18</span></label>
+        <label><span class="lbl-main">LA reservoir strain <span class="reqtag opt">optional</span></span> <span class="cut">abn ≤ 18</span></label>
         <div class="inp"><input id="lars" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">%</span></div>
       </div>
       <div class="field">
-        <label>LAVi <span class="cut">abn &gt; 34</span></label>
+        <label><span class="lbl-main">LAVi <span class="reqtag opt">optional</span></span> <span class="cut">abn &gt; 34</span></label>
         <div class="inp"><input id="lavi" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">mL/m²</span></div>
       </div>
       <div class="field">
-        <label>IVRT <span class="cut">alt ≤ 70</span></label>
+        <label><span class="lbl-main">IVRT <span class="reqtag opt">optional</span></span> <span class="cut">alt ≤ 70</span></label>
         <div class="inp"><input id="ivrt" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">ms</span></div>
       </div>
     </div>
@@ -341,7 +376,74 @@ const CONFOUNDERS = [
   ["peri","Pericardial constriction"],
 ];
 
-const state = { confounders:new Set() };
+const state = { confounders:new Set(), quickPick:{} };
+
+/* ---------- quick-pick (button) alternative to typing numbers ---------- */
+// [id, isAbnormal(value), abnormal-side label, normal-side label]
+const QUICKPICKS = [
+  ["ePrimeAvg", v=>v<=6.5,  "≤ 6.5", "> 6.5"],
+  ["ePrimeSep", v=>v<=6,    "≤ 6",   "> 6"],
+  ["ePrimeLat", v=>v<=7,    "≤ 7",   "> 7"],
+  ["EeAvg",     v=>v>=14,   "≥ 14",  "< 14"],
+  ["EeSep",     v=>v>=15,   "≥ 15",  "< 15"],
+  ["EeLat",     v=>v>=13,   "≥ 13",  "< 13"],
+  ["trVel",     v=>v>=2.8,  "≥ 2.8", "< 2.8"],
+  ["pasp",      v=>v>=35,   "≥ 35",  "< 35"],
+  ["pvSD",      v=>v<=0.67, "≤ 0.67","> 0.67"],
+  ["lars",      v=>v<=18,   "≤ 18",  "> 18"],
+  ["lavi",      v=>v>34,    "> 34",  "≤ 34"],
+  ["ivrt",      v=>v<=70,   "≤ 70",  "> 70"],
+];
+const QP_MAP = Object.fromEntries(QUICKPICKS.map(q=>[q[0],q]));
+const STEP1_QP_IDS = new Set(["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp"]);
+const STEP2_QP_IDS = new Set(["pvSD","lars","lavi","ivrt"]);
+
+function buildQuickPicks(){
+  QUICKPICKS.forEach(([id,,abnLabel,normLabel])=>{
+    const input = $(id);
+    const wrap = document.createElement("div");
+    wrap.className = "qp";
+    wrap.innerHTML =
+      `<button type="button" class="qbtn abn" data-mode="abn">${abnLabel}<span class="qtag">abnormal</span></button>` +
+      `<button type="button" class="qbtn norm" data-mode="norm">${normLabel}<span class="qtag">normal</span></button>`;
+    input.closest(".inp").insertAdjacentElement("afterend", wrap);
+    wrap.querySelectorAll(".qbtn").forEach(btn=>{
+      btn.addEventListener("click",()=>onQuickPick(id,btn.dataset.mode,wrap));
+    });
+  });
+}
+
+function onQuickPick(id,mode,wrap){
+  const input = $(id);
+  const cur = state.quickPick[id];
+  input.classList.remove("abn","norm");
+  if(cur===mode){
+    delete state.quickPick[id];
+    input.disabled = false;
+    input.placeholder = "—";
+  } else {
+    state.quickPick[id] = mode;
+    input.value = "";
+    input.disabled = true;
+    input.placeholder = mode==="abn" ? "quick pick: abnormal" : "quick pick: normal";
+    input.classList.add(mode==="abn"?"abn":"norm");
+  }
+  wrap.querySelectorAll(".qbtn").forEach(b=>b.classList.toggle("active", state.quickPick[id]===b.dataset.mode));
+  if(STEP1_QP_IDS.has(id)) renderStrip();
+  if(STEP2_QP_IDS.has(id)) updateS2Live();
+}
+
+// resolves a field to {has, abnormal, disp} — quick-pick choice takes priority over typed value
+function critVal(id){
+  const mode = state.quickPick[id];
+  if(mode){
+    const q = QP_MAP[id];
+    return {has:true, abnormal: mode==="abn", disp: (mode==="abn" ? q[2] : q[3])};
+  }
+  const v = num(id);
+  if(v===null) return {has:false};
+  return {has:true, abnormal: QP_MAP[id][1](v), disp:v};
+}
 
 /* ---------- build confounder chips ---------- */
 const cbox = $("confounders");
@@ -364,29 +466,21 @@ const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? null : 
 const has = v => v !== null && v !== undefined;
 
 function evalCore(){
-  const ePavg=num("ePrimeAvg"), ePsep=num("ePrimeSep"), ePlat=num("ePrimeLat");
-  const Eavg=num("EeAvg"), Esep=num("EeSep"), Elat=num("EeLat");
-  const tr=num("trVel"), pasp=num("pasp");
+  const ePavg=critVal("ePrimeAvg"), ePsep=critVal("ePrimeSep"), ePlat=critVal("ePrimeLat");
+  const Eavg=critVal("EeAvg"), Esep=critVal("EeSep"), Elat=critVal("EeLat");
+  const tr=critVal("trVel"), pasp=critVal("pasp");
 
   // Criterion 1 — reduced e' (abnormal = low)
-  const c1parts=[];
-  if(has(ePavg)) c1parts.push(ePavg<=6.5);
-  if(has(ePsep)) c1parts.push(ePsep<=6);
-  if(has(ePlat)) c1parts.push(ePlat<=7);
-  const c1has=c1parts.length>0, c1=c1parts.some(Boolean);
+  const c1parts=[ePavg,ePsep,ePlat].filter(x=>x.has);
+  const c1has=c1parts.length>0, c1=c1parts.some(x=>x.abnormal);
 
   // Criterion 2 — increased E/e'
-  const c2parts=[];
-  if(has(Eavg)) c2parts.push(Eavg>=14);
-  if(has(Esep)) c2parts.push(Esep>=15);
-  if(has(Elat)) c2parts.push(Elat>=13);
-  const c2has=c2parts.length>0, c2=c2parts.some(Boolean);
+  const c2parts=[Eavg,Esep,Elat].filter(x=>x.has);
+  const c2has=c2parts.length>0, c2=c2parts.some(x=>x.abnormal);
 
   // Criterion 3 — increased TR / PASP
-  const c3parts=[];
-  if(has(tr)) c3parts.push(tr>=2.8);
-  if(has(pasp)) c3parts.push(pasp>=35);
-  const c3has=c3parts.length>0, c3=c3parts.some(Boolean);
+  const c3parts=[tr,pasp].filter(x=>x.has);
+  const c3has=c3parts.length>0, c3=c3parts.some(x=>x.abnormal);
 
   return {c1,c2,c3,c1has,c2has,c3has,
     values:{ePavg,ePsep,ePlat,Eavg,Esep,Elat,tr,pasp}};
@@ -498,12 +592,13 @@ function updateS2Live(){
 }
 
 function additionalMarkers(){
-  const pv=num("pvSD"), la=num("lars"), lv=num("lavi"), iv=num("ivrt");
+  const pv=critVal("pvSD"), la=critVal("lars"), lv=critVal("lavi"), iv=critVal("ivrt");
+  const unit = (c,u) => typeof c.disp==="number" ? c.disp+u : c.disp;
   const list=[];
-  if(has(pv)) list.push({name:"Pulm vein S/D",val:pv,abn:pv<=0.67,cut:"≤ 0.67"});
-  if(has(la)) list.push({name:"LA reservoir strain",val:la+"%",abn:la<=18,cut:"≤ 18%"});
-  if(has(lv)) list.push({name:"LAVi",val:lv+" mL/m²",abn:lv>34,cut:"> 34"});
-  if(has(iv)) list.push({name:"IVRT",val:iv+" ms",abn:iv<=70,cut:"≤ 70 ms"});
+  if(pv.has) list.push({name:"Pulm vein S/D",val:unit(pv,""),abn:pv.abnormal,cut:"≤ 0.67"});
+  if(la.has) list.push({name:"LA reservoir strain",val:unit(la,"%"),abn:la.abnormal,cut:"≤ 18%"});
+  if(lv.has) list.push({name:"LAVi",val:unit(lv," mL/m²"),abn:lv.abnormal,cut:"> 34"});
+  if(iv.has) list.push({name:"IVRT",val:unit(iv," ms"),abn:iv.abnormal,cut:"≤ 70 ms"});
   return {list,assessed:list.length,abnormal:list.filter(x=>x.abn).length};
 }
 
@@ -570,9 +665,9 @@ function renderResult(r){
       if(!assessed) return line("neut","not assessed","—");
       return line(active?"bad":"ok", active?"abnormal":"normal", parts);
     };
-    const p1=[]; if(has(v.ePavg))p1.push(`avg e′ <code>${v.ePavg}</code>`); if(has(v.ePsep))p1.push(`septal <code>${v.ePsep}</code>`); if(has(v.ePlat))p1.push(`lateral <code>${v.ePlat}</code>`);
-    const p2=[]; if(has(v.Eavg))p2.push(`avg E/e′ <code>${v.Eavg}</code>`); if(has(v.Esep))p2.push(`septal <code>${v.Esep}</code>`); if(has(v.Elat))p2.push(`lateral <code>${v.Elat}</code>`);
-    const p3=[]; if(has(v.tr))p3.push(`TR vel <code>${v.tr}</code>`); if(has(v.pasp))p3.push(`PASP <code>${v.pasp}</code>`);
+    const p1=[]; if(v.ePavg.has)p1.push(`avg e′ <code>${v.ePavg.disp}</code>`); if(v.ePsep.has)p1.push(`septal <code>${v.ePsep.disp}</code>`); if(v.ePlat.has)p1.push(`lateral <code>${v.ePlat.disp}</code>`);
+    const p2=[]; if(v.Eavg.has)p2.push(`avg E/e′ <code>${v.Eavg.disp}</code>`); if(v.Esep.has)p2.push(`septal <code>${v.Esep.disp}</code>`); if(v.Elat.has)p2.push(`lateral <code>${v.Elat.disp}</code>`);
+    const p3=[]; if(v.tr.has)p3.push(`TR vel <code>${v.tr.disp}</code>`); if(v.pasp.has)p3.push(`PASP <code>${v.pasp.disp}</code>`);
     reasons += `<div class="reason"><h3>Core criteria</h3><div class="rlist">`;
     reasons += critDetail(c.c1has,c.c1,`① reduced e′ · ${p1.join(", ")||"—"}`);
     reasons += critDetail(c.c2has,c.c2,`② ↑ E/e′ · ${p2.join(", ")||"—"}`);
@@ -633,10 +728,11 @@ function renderResult(r){
 }
 
 function resetAll(){
-  state.confounders.clear(); delete state._pending;
+  state.confounders.clear(); delete state._pending; state.quickPick={};
   document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
+  document.querySelectorAll(".qbtn.active").forEach(b=>b.classList.remove("active"));
   ["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp","mitE","mitA","pvSD","lars","lavi","ivrt"]
-    .forEach(id=>{$(id).value="";$(id).classList.remove("norm","abn");});
+    .forEach(id=>{$(id).value="";$(id).disabled=false;$(id).placeholder="—";$(id).classList.remove("norm","abn");});
   $("c-continue").textContent="Continue";
   $("c-hint").textContent="Select all that apply, or continue if none.";
   $("result").classList.add("hidden");
@@ -644,6 +740,7 @@ function resetAll(){
 }
 
 /* init */
+buildQuickPicks();
 show(0);
 </script>
 </body>
