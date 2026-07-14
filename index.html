@@ -131,6 +131,7 @@
   .inp input:disabled{background:var(--surface);color:var(--faint);cursor:not-allowed}
   .inp input.abn:disabled{background:var(--red-soft);color:var(--red)}
   .inp input.norm:disabled{background:var(--green-soft);color:var(--green)}
+  .inp input[readonly]{background:var(--surface);color:var(--muted);cursor:default}
   .grouplabel{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:4px 0 -4px;display:flex;align-items:center;gap:8px}
   .grouplabel::after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -151,6 +152,8 @@
   .qbtn.abn.active .qtag{color:rgba(255,255,255,.85)}
   .qbtn.norm.active{background:var(--green);border-color:var(--green)}
   .qbtn.norm.active .qtag{color:rgba(255,255,255,.85)}
+  .qbtn.mid.active{background:var(--amber);border-color:var(--amber)}
+  .qbtn.mid.active .qtag{color:rgba(255,255,255,.85)}
 
   /* required / optional / alternate tags */
   .reqtag{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:20px;white-space:nowrap}
@@ -292,30 +295,36 @@
         <label><span class="lbl-main">Average e′ <span class="reqtag req">required</span></span> <span class="cut">abn ≤ 6.5</span></label>
         <div class="inp"><input id="ePrimeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
-      <div class="field">
-        <label><span class="lbl-main">TR velocity <span class="reqtag req">required</span></span> <span class="cut">abn ≥ 2.8</span></label>
-        <div class="inp"><input id="trVel" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">m/s</span></div>
-      </div>
       <div class="grouplabel">Criterion 2 — filling pressure surrogate</div>
       <div class="field">
         <label><span class="lbl-main">Average E/e′ <span class="reqtag req">required</span></span> <span class="cut">abn ≥ 14</span></label>
         <div class="inp"><input id="EeAvg" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">ratio</span></div>
       </div>
+      <div class="grouplabel">Criterion 3 — TR velocity / PASP</div>
+      <div class="field">
+        <label><span class="lbl-main">TR velocity <span class="reqtag req">required</span></span> <span class="cut">abn ≥ 2.8</span></label>
+        <div class="inp"><input id="trVel" type="number" step="0.1" inputmode="decimal" placeholder="—"><span class="unit">m/s</span></div>
+      </div>
       <div class="field">
         <label><span class="lbl-main">PASP <span class="reqtag alt">alternate</span></span> <span class="cut">alt ≥ 35</span></label>
         <div class="inp"><input id="pasp" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">mmHg</span></div>
       </div>
-      <div class="grouplabel">Mitral inflow — for E/A branching</div>
-      <div class="field">
+
+      <div class="grouplabel mitral-grp hidden" id="mitralLabel">Mitral inflow — for E/A branching</div>
+      <div class="field mitral-grp hidden">
         <label><span class="lbl-main">Peak E <span class="reqtag req">required</span></span> <span class="cut">early</span></label>
         <div class="inp"><input id="mitE" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
-      <div class="field">
+      <div class="field mitral-grp hidden">
         <label><span class="lbl-main">Peak A <span class="reqtag req">required</span></span> <span class="cut">atrial</span></label>
         <div class="inp"><input id="mitA" type="number" step="1" inputmode="decimal" placeholder="—"><span class="unit">cm/s</span></div>
       </div>
+      <div class="field full mitral-grp hidden">
+        <label><span class="lbl-main">E/A ratio</span> <span class="cut">gates 0.8 / 2</span></label>
+        <div class="inp"><input id="eaOut" type="text" inputmode="decimal" placeholder="—" readonly><span class="unit">ratio</span></div>
+      </div>
     </div>
-    <p class="step-note" style="margin-top:4px">Peak E/A are only used by some branches, but almost every path ends up needing them — enter them up front to avoid a round trip.</p>
+    <p class="step-note mitral-grp hidden" id="mitralNote" style="margin-top:4px">Peak E and A (or a quick-picked E/A ratio) are only needed once a criterion above is abnormal.</p>
 
     <details class="adv">
       <summary>Advanced — site-specific cutoffs</summary>
@@ -410,7 +419,7 @@ const CONFOUNDERS = [
   ["peri","Pericardial constriction"],
 ];
 
-const state = { confounders:new Set(), quickPick:{} };
+const state = { confounders:new Set(), quickPick:{}, eaQuick:null };
 
 /* ---------- quick-pick (button) alternative to typing numbers ---------- */
 // [id, isAbnormal(value), abnormal-side label, normal-side label, unit]
@@ -480,6 +489,63 @@ function critVal(id){
   return {has:true, abnormal: QP_MAP[id][1](v), disp:v};
 }
 
+// E/A ratio quick-pick: three buckets instead of abnormal/normal, since the
+// algorithm gates on both 0.8 and 2 depending on which branch is active.
+// [id, representative value, label, tag, color-class]
+const EA_QUICKPICKS = [
+  ["le08", 0.8, "≤ 0.8",  "low",  "norm"],
+  ["mid",  1.4, "0.8 – 2","mid",  "mid"],
+  ["ge2",  2.0, "≥ 2",    "high", "abn"],
+];
+const EA_QP_MAP = Object.fromEntries(EA_QUICKPICKS.map(([id,val,label,tag])=>[id,{val,label,tag}]));
+
+function buildEaQuickPicks(){
+  const input = $("eaOut");
+  const wrap = document.createElement("div");
+  wrap.className = "qp";
+  wrap.innerHTML = EA_QUICKPICKS.map(([id,,label,tag,cls])=>
+    `<button type="button" class="qbtn ${cls}" data-mode="${id}"><span class="qval">${label} <span class="qunit">ratio</span></span><span class="qtag">${tag}</span></button>`
+  ).join("");
+  input.closest(".inp").insertAdjacentElement("afterend", wrap);
+  wrap.querySelectorAll(".qbtn").forEach(btn=>{
+    btn.addEventListener("click",()=>onEaQuickPick(btn.dataset.mode,wrap));
+  });
+}
+
+function onEaQuickPick(mode,wrap){
+  const mitE=$("mitE"), mitA=$("mitA");
+  if(state.eaQuick===mode){
+    state.eaQuick = null;
+    mitE.disabled=false; mitA.disabled=false;
+    mitE.placeholder="—"; mitA.placeholder="—";
+  } else {
+    state.eaQuick = mode;
+    mitE.value=""; mitA.value="";
+    mitE.disabled=true; mitA.disabled=true;
+    mitE.placeholder="quick pick"; mitA.placeholder="quick pick";
+  }
+  wrap.querySelectorAll(".qbtn").forEach(b=>b.classList.toggle("active", state.eaQuick===b.dataset.mode));
+  updateEaDisplay();
+}
+
+function updateEaDisplay(){
+  const out = $("eaOut");
+  if(state.eaQuick){ out.value = EA_QP_MAP[state.eaQuick].label; return; }
+  const E=num("mitE"), A=num("mitA");
+  out.value = (has(E)&&has(A)&&A>0) ? (E/A).toFixed(2) : "";
+}
+
+// resolves the mitral E/A ratio — quick-pick bucket takes priority over typed values
+function getEA(){
+  if(state.eaQuick){
+    const q = EA_QP_MAP[state.eaQuick];
+    return {has:true, value:q.val, disp:q.label};
+  }
+  const E=num("mitE"), A=num("mitA");
+  if(has(E)&&has(A)&&A>0){ const v=E/A; return {has:true, value:v, disp:v.toFixed(2)}; }
+  return {has:false};
+}
+
 /* ---------- build confounder chips ---------- */
 const cbox = $("confounders");
 CONFOUNDERS.forEach(([id,label,abbr])=>{
@@ -521,12 +587,6 @@ function evalCore(){
     values:{ePavg,ePsep,ePlat,Eavg,Esep,Elat,tr,pasp}};
 }
 
-function eaRatio(){
-  const E=num("mitE"), A=num("mitA");
-  if(has(E)&&has(A)&&A>0) return E/A;
-  return null;
-}
-
 /* ---------- criteria strip live render ---------- */
 function renderStrip(){
   const c = evalCore();
@@ -546,6 +606,12 @@ function renderStrip(){
   const ok = assessedCount===3;
   $("s1-next").disabled = !ok;
   $("s1-hint").textContent = ok ? "" : `All three criteria must be assessed (${assessedCount}/3 entered). Missing a criterion changes the grade — enter a value or its site-specific equivalent.`;
+
+  // mitral inflow (E/A) is only needed once all three criteria are in and at least one is abnormal
+  const n=[c.c1,c.c2,c.c3].filter(Boolean).length;
+  const showMitral = ok && n>0;
+  document.querySelectorAll(".mitral-grp").forEach(el=>el.classList.toggle("hidden", !showMitral));
+  updateEaDisplay();
 }
 
 /* ---------- navigation ---------- */
@@ -581,7 +647,7 @@ $("s2-next").addEventListener("click",()=>renderResult(finalizeAdditional()));
 function decide(){
   const c = evalCore();
   const n = [c.c1,c.c2,c.c3].filter(Boolean).length;
-  const ea = eaRatio();
+  const ea = getEA();
   const path = [{cls:"teal",t:"3 criteria assessed"}];
 
   // n = 0 → normal DF
@@ -597,8 +663,8 @@ function decide(){
   // n = 1, reduced e' only → E/A gate
   if(n===1 && c.c1){
     path.push({cls:"teal",t:"Reduced e′ only"});
-    if(!has(ea)) return finish("indet_ea",{title:"Enter mitral E and A",path,core:c,ea,needEA:true});
-    if(ea<=0.8){
+    if(!ea.has) return finish("indet_ea",{title:"Enter mitral E and A",path,core:c,ea,needEA:true});
+    if(ea.value<=0.8){
       path.push({cls:"teal",t:"E/A ≤ 0.8"},{cls:"green",t:"Normal LAP"},{cls:"green",t:"Grade 1"});
       return finish("g1",{grade:"Grade 1",title:"Grade 1 diastolic dysfunction",lap:"normal",path,core:c,ea});
     }
@@ -654,8 +720,8 @@ function finalizeAdditional(){
 }
 
 function gradeIncreased(ea,path,core,markers){
-  if(!has(ea)) return finish("indet_ea",{title:"Enter mitral E and A to grade",path,core,ea,markers,needEA:true});
-  if(ea<2){
+  if(!ea.has) return finish("indet_ea",{title:"Enter mitral E and A to grade",path,core,ea,markers,needEA:true});
+  if(ea.value<2){
     path.push({cls:"teal",t:"E/A < 2"},{cls:"red",t:"Grade 2"});
     return finish("g2",{grade:"Grade 2",title:"Grade 2 diastolic dysfunction",lap:"increased",lapMod:"Mild / moderate ↑ LAP",path,core,ea,markers});
   }
@@ -707,7 +773,7 @@ function renderResult(r){
     reasons += critDetail(c.c1has,c.c1,`① reduced e′ · ${p1.join(", ")||"—"}`);
     reasons += critDetail(c.c2has,c.c2,`② ↑ E/e′ · ${p2.join(", ")||"—"}`);
     reasons += critDetail(c.c3has,c.c3,`③ ↑ TR/PASP · ${p3.join(", ")||"—"}`);
-    if(has(r.ea)) reasons += `<div class="ritem"><span class="mk neut"></span><span><b>E/A</b> — <code>${r.ea.toFixed(2)}</code></span></div>`;
+    if(r.ea && r.ea.has) reasons += `<div class="ritem"><span class="mk neut"></span><span><b>E/A</b> — <code>${r.ea.disp}</code></span></div>`;
     reasons += `</div></div>`;
   }
   if(r.markers && r.markers.list.length){
@@ -763,11 +829,13 @@ function renderResult(r){
 }
 
 function resetAll(){
-  state.confounders.clear(); delete state._pending; state.quickPick={};
+  state.confounders.clear(); delete state._pending; state.quickPick={}; state.eaQuick=null;
   document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
   document.querySelectorAll(".qbtn.active").forEach(b=>b.classList.remove("active"));
   ["ePrimeAvg","ePrimeSep","ePrimeLat","EeAvg","EeSep","EeLat","trVel","pasp","mitE","mitA","pvSD","lars","lavi","ivrt"]
     .forEach(id=>{$(id).value="";$(id).disabled=false;$(id).placeholder="—";$(id).classList.remove("norm","abn");});
+  $("eaOut").value="";
+  document.querySelectorAll(".mitral-grp").forEach(el=>el.classList.add("hidden"));
   $("c-continue").textContent="Continue";
   $("c-hint").textContent="Select all that apply, or continue if none.";
   $("result").classList.add("hidden");
@@ -776,6 +844,7 @@ function resetAll(){
 
 /* init */
 buildQuickPicks();
+buildEaQuickPicks();
 show(0);
 </script>
 </body>
