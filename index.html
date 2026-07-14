@@ -148,14 +148,13 @@
   .qbtn:hover{border-color:var(--teal)}
   .qbtn.abn{background:var(--red-soft);border-color:#f0c9c5}
   .qbtn.norm{background:var(--green-soft);border-color:#c6e6d3}
-  .qbtn.mid{background:var(--amber-soft);border-color:#ecd8a6}
   .qbtn.active{color:#fff}
   .qbtn.abn.active{background:var(--red);border-color:var(--red)}
   .qbtn.abn.active .qtag{color:rgba(255,255,255,.85)}
   .qbtn.norm.active{background:var(--green);border-color:var(--green)}
   .qbtn.norm.active .qtag{color:rgba(255,255,255,.85)}
-  .qbtn.mid.active{background:var(--amber);border-color:var(--amber)}
-  .qbtn.mid.active .qtag{color:rgba(255,255,255,.85)}
+  .qbtn.neutral.active{background:var(--teal);border-color:var(--teal)}
+  .qbtn.neutral.active .qtag{color:rgba(255,255,255,.85)}
 
   /* required / optional / alternate tags */
   .reqtag{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:20px;white-space:nowrap}
@@ -491,13 +490,13 @@ function critVal(id){
   return {has:true, abnormal: QP_MAP[id][1](v), disp:v};
 }
 
-// E/A ratio quick-pick: three buckets instead of abnormal/normal, since the
-// algorithm gates on both 0.8 and 2 depending on which branch is active.
-// [id, representative value, label, tag, color-class]
+// E/A ratio quick-pick: three neutral buckets (not abnormal/normal — the algorithm
+// gates on both 0.8 and 2 depending on which branch is active, so no single bucket is "bad").
+// [id, representative value, label, tag]
 const EA_QUICKPICKS = [
-  ["le08", 0.8, "≤ 0.8",  "low",  "norm"],
-  ["mid",  1.4, "0.8 – 2","mid",  "mid"],
-  ["ge2",  2.0, "≥ 2",    "high", "abn"],
+  ["le08", 0.8, "≤ 0.8",  "low"],
+  ["mid",  1.4, "0.8 – 2","mid"],
+  ["ge2",  2.0, "≥ 2",    "high"],
 ];
 const EA_QP_MAP = Object.fromEntries(EA_QUICKPICKS.map(([id,val,label,tag])=>[id,{val,label,tag}]));
 
@@ -505,8 +504,8 @@ function buildEaQuickPicks(){
   const input = $("eaOut");
   const wrap = document.createElement("div");
   wrap.className = "qp";
-  wrap.innerHTML = EA_QUICKPICKS.map(([id,,label,tag,cls])=>
-    `<button type="button" class="qbtn ${cls}" data-mode="${id}"><span class="qval">${label} <span class="qunit">ratio</span></span><span class="qtag">${tag}</span></button>`
+  wrap.innerHTML = EA_QUICKPICKS.map(([id,,label,tag])=>
+    `<button type="button" class="qbtn neutral" data-mode="${id}"><span class="qval">${label} <span class="qunit">ratio</span></span><span class="qtag">${tag}</span></button>`
   ).join("");
   input.closest(".inp").insertAdjacentElement("afterend", wrap);
   wrap.querySelectorAll(".qbtn").forEach(btn=>{
